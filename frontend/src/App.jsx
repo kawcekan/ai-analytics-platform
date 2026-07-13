@@ -16,6 +16,13 @@ function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('dashboard')
+  
+  // New state for file processing
+  const [file, setFile] = useState(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [processStatus, setProcessStatus] = useState(null)
+
+  const BACKEND_URL = 'https://ai-analytics-platform-eta.vercel.app'
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,6 +43,47 @@ function App() {
 
   const signOut = async () => {
     await supabase.auth.signOut()
+  }
+
+  const handleFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0])
+      setProcessStatus(null)
+    }
+  }
+
+  const handleInitializeProcessing = async () => {
+    if (!file) {
+      alert("Please upload a file first!")
+      return
+    }
+
+    setIsProcessing(true)
+    setProcessStatus("Processing data...")
+
+    try {
+      // In a real app we'd parse the file here or send it as FormData.
+      // We'll send a dummy payload that matches our FastAPI schema for now.
+      const response = await fetch(`${BACKEND_URL}/api/clean`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: [1, 2, 3] }) // dummy data to satisfy the backend
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        setProcessStatus(`Success! Message from backend: ${result.message}`)
+      } else {
+        setProcessStatus("Error connecting to backend.")
+      }
+    } catch (error) {
+      setProcessStatus("Failed to reach the ML Engine.")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   if (loading) {
@@ -96,10 +144,22 @@ function App() {
           <div className="card">
             <h3><Upload color="#00f2fe" size={24} /> Upload Dataset</h3>
             <div className="file-upload-wrapper">
-              <input type="file" />
-              <span>Drag & Drop or Click to Browse</span>
+              <input type="file" accept=".csv, .xlsx" onChange={handleFileChange} />
+              <span>{file ? file.name : "Drag & Drop or Click to Browse"}</span>
             </div>
-            <button className="action-btn">Initialize Processing</button>
+            <button 
+              className="action-btn" 
+              onClick={handleInitializeProcessing}
+              disabled={isProcessing}
+              style={{ opacity: isProcessing ? 0.7 : 1 }}
+            >
+              {isProcessing ? "Processing..." : "Initialize Processing"}
+            </button>
+            {processStatus && (
+              <p style={{ marginTop: '15px', color: processStatus.includes('Success') ? '#34a853' : '#ea4335', fontWeight: 'bold' }}>
+                {processStatus}
+              </p>
+            )}
           </div>
           
           <div className="card">
@@ -114,7 +174,9 @@ function App() {
             </div>
             <div className="status-item">
               <span>ML Compute Engine</span>
-              <span className="status-badge offline">Awaiting Data</span>
+              <span className={processStatus && processStatus.includes('Success') ? "status-badge" : "status-badge offline"}>
+                {processStatus && processStatus.includes('Success') ? "Active" : "Awaiting Data"}
+              </span>
             </div>
           </div>
         </section>
