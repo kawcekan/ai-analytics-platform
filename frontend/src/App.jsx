@@ -21,6 +21,7 @@ function App() {
   const [file, setFile] = useState(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processStatus, setProcessStatus] = useState(null)
+  const [backendResults, setBackendResults] = useState(null)
 
   const BACKEND_URL = 'https://ai-analytics-platform-eta.vercel.app'
 
@@ -60,24 +61,24 @@ function App() {
 
     setIsProcessing(true)
     setProcessStatus("Processing data...")
+    setBackendResults(null)
 
     try {
-      // In a real app we'd parse the file here or send it as FormData.
-      // We'll send a dummy payload that matches our FastAPI schema for now.
+      const formData = new FormData()
+      formData.append("file", file)
+
       const response = await fetch(`${BACKEND_URL}/api/clean`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ data: [1, 2, 3] }) // dummy data to satisfy the backend
+        body: formData // sending actual file via FormData
       })
 
       const result = await response.json()
       
       if (response.ok) {
         setProcessStatus(`Success! Message from backend: ${result.message}`)
+        setBackendResults(result)
       } else {
-        setProcessStatus("Error connecting to backend.")
+        setProcessStatus(`Error connecting to backend: ${result.detail || 'Unknown error'}`)
       }
     } catch (error) {
       setProcessStatus("Failed to reach the ML Engine.")
@@ -180,6 +181,58 @@ function App() {
             </div>
           </div>
         </section>
+        
+        {backendResults && (
+          <section className="cards-grid" style={{ marginTop: '20px' }}>
+            <div className="card" style={{ gridColumn: '1 / -1' }}>
+              <h3><Database color="#00f2fe" size={24} /> Data Cleaning & EDA Results</h3>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '15px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '200px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                  <h4>Cleaning Metrics</h4>
+                  <ul style={{ listStyle: 'none', padding: 0, marginTop: '10px' }}>
+                    <li style={{ marginBottom: '8px' }}>Initial Rows: <strong>{backendResults.metrics.initial_rows}</strong></li>
+                    <li style={{ marginBottom: '8px' }}>Duplicates Removed: <strong style={{color: '#00f2fe'}}>{backendResults.metrics.duplicates_removed}</strong></li>
+                    <li style={{ marginBottom: '8px' }}>Final Cleaned Rows: <strong>{backendResults.metrics.cleaned_rows}</strong></li>
+                    <li style={{ marginBottom: '8px' }}>Total Columns: <strong>{backendResults.metrics.columns}</strong></li>
+                  </ul>
+                  <p style={{ fontSize: '0.85em', color: '#aaa', marginTop: '10px' }}>
+                    * Missing values were automatically imputed using Median (for numbers) and Mode (for categories).
+                  </p>
+                </div>
+                
+                <div style={{ flex: 2, minWidth: '300px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', overflowX: 'auto' }}>
+                  <h4>EDA: Summary Statistics (Preview)</h4>
+                  {Object.keys(backendResults.summary_statistics).length > 0 ? (
+                    <table style={{ width: '100%', marginTop: '10px', borderCollapse: 'collapse', fontSize: '0.9em', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                          <th style={{ padding: '8px' }}>Column</th>
+                          <th style={{ padding: '8px' }}>Mean</th>
+                          <th style={{ padding: '8px' }}>Min</th>
+                          <th style={{ padding: '8px' }}>Max</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(backendResults.summary_statistics).slice(0, 5).map(([col, stats]) => (
+                          <tr key={col} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <td style={{ padding: '8px', color: '#00f2fe' }}>{col}</td>
+                            <td style={{ padding: '8px' }}>{stats.mean ? stats.mean.toFixed(2) : 'N/A'}</td>
+                            <td style={{ padding: '8px' }}>{stats.min ? stats.min.toFixed(2) : 'N/A'}</td>
+                            <td style={{ padding: '8px' }}>{stats.max ? stats.max.toFixed(2) : 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <p style={{ marginTop: '10px' }}>No numeric columns to summarize.</p>
+                  )}
+                  <p style={{ fontSize: '0.85em', color: '#aaa', marginTop: '10px' }}>Showing top 5 numeric columns.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
       </main>
     </div>
   )
