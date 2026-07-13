@@ -53,6 +53,9 @@ async def clean_data(file: UploadFile = File(...)):
 
         # Convert a sample of the cleaned data back to dictionary for the frontend preview
         cleaned_sample = df.head(5).to_dict(orient='records')
+        
+        # Convert the full cleaned dataframe to a CSV string so the user can download it
+        cleaned_csv_string = df.to_csv(index=False)
 
         return {
             "status": "Success",
@@ -64,7 +67,8 @@ async def clean_data(file: UploadFile = File(...)):
                 "columns": cleaned_cols
             },
             "summary_statistics": summary_stats,
-            "sample_data": cleaned_sample
+            "sample_data": cleaned_sample,
+            "cleaned_csv": cleaned_csv_string
         }
 
     except Exception as e:

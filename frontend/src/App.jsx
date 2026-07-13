@@ -111,36 +111,21 @@ function App() {
     )
   }
 
-  return (
-    <div className="dashboard">
-      <nav className="sidebar">
-        <h2><Sparkles color="#00f2fe" size={28} /> Nexus</h2>
-        <ul>
-          <li className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
-            <LayoutDashboard size={20} /> Dashboard
-          </li>
-          <li className={activeTab === 'upload' ? 'active' : ''} onClick={() => setActiveTab('upload')}>
-            <Database size={20} /> Data Hub
-          </li>
-          <li className={activeTab === 'models' ? 'active' : ''} onClick={() => setActiveTab('models')}>
-            <Activity size={20} /> ML Engine
-          </li>
-          <li className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
-            <Settings size={20} /> Settings
-          </li>
-        </ul>
-        <div className="user-info">
-          <p>{session.user.email}</p>
-          <button onClick={signOut}><LogOut size={16} style={{marginRight: '8px', verticalAlign: 'middle'}}/> Sign Out</button>
-        </div>
-      </nav>
-      
-      <main className="main-content">
-        <header>
-          <h1>Welcome back, {session.user.user_metadata.full_name || 'Explorer'}</h1>
-          <p>Here is what's happening with your data today.</p>
-        </header>
-        
+  const handleDownloadCSV = () => {
+    if (!backendResults || !backendResults.cleaned_csv) return;
+    const blob = new Blob([backendResults.cleaned_csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.setAttribute("href", url)
+    link.setAttribute("download", "cleaned_dataset.csv")
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const renderContent = () => {
+    if (activeTab === 'dashboard') {
+      return (
         <section className="cards-grid">
           <div className="card">
             <h3><Upload color="#00f2fe" size={24} /> Upload Dataset</h3>
@@ -180,10 +165,8 @@ function App() {
               </span>
             </div>
           </div>
-        </section>
-        
-        {backendResults && (
-          <section className="cards-grid" style={{ marginTop: '20px' }}>
+
+          {backendResults && (
             <div className="card" style={{ gridColumn: '1 / -1' }}>
               <h3><Database color="#00f2fe" size={24} /> Data Cleaning & EDA Results</h3>
               <div style={{ display: 'flex', gap: '20px', marginTop: '15px', flexWrap: 'wrap' }}>
@@ -195,9 +178,9 @@ function App() {
                     <li style={{ marginBottom: '8px' }}>Final Cleaned Rows: <strong>{backendResults.metrics.cleaned_rows}</strong></li>
                     <li style={{ marginBottom: '8px' }}>Total Columns: <strong>{backendResults.metrics.columns}</strong></li>
                   </ul>
-                  <p style={{ fontSize: '0.85em', color: '#aaa', marginTop: '10px' }}>
-                    * Missing values were automatically imputed using Median (for numbers) and Mode (for categories).
-                  </p>
+                  <button className="action-btn" onClick={() => setActiveTab('upload')} style={{ marginTop: '15px', padding: '10px', fontSize: '0.9em' }}>
+                    View Cleaned Data
+                  </button>
                 </div>
                 
                 <div style={{ flex: 2, minWidth: '300px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', overflowX: 'auto' }}>
@@ -226,13 +209,111 @@ function App() {
                   ) : (
                     <p style={{ marginTop: '10px' }}>No numeric columns to summarize.</p>
                   )}
-                  <p style={{ fontSize: '0.85em', color: '#aaa', marginTop: '10px' }}>Showing top 5 numeric columns.</p>
                 </div>
               </div>
             </div>
-          </section>
-        )}
+          )}
+        </section>
+      )
+    }
 
+    if (activeTab === 'upload') {
+      return (
+        <section className="cards-grid">
+          <div className="card" style={{ gridColumn: '1 / -1' }}>
+            <h3><Database color="#00f2fe" size={24} /> Data Hub</h3>
+            {backendResults ? (
+              <div style={{ marginTop: '20px' }}>
+                <p style={{ marginBottom: '20px' }}>Your dataset has been cleaned, standardized, and imputed. It is ready for export.</p>
+                <button className="action-btn" onClick={handleDownloadCSV} style={{ width: 'auto', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Database size={18} /> Download Cleaned Dataset (CSV)
+                </button>
+              </div>
+            ) : (
+              <p style={{ marginTop: '20px', color: '#aaa' }}>No data processed yet. Please upload a dataset in the Dashboard.</p>
+            )}
+          </div>
+        </section>
+      )
+    }
+
+    if (activeTab === 'models') {
+      return (
+        <section className="cards-grid">
+          <div className="card" style={{ gridColumn: '1 / -1' }}>
+            <h3><Activity color="#00f2fe" size={24} /> Automated Visualization & ML Engine</h3>
+            {backendResults ? (
+              <div style={{ marginTop: '20px' }}>
+                <p>Generating visualizations based on your EDA results...</p>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '20px' }}>
+                  {Object.entries(backendResults.summary_statistics).slice(0, 3).map(([col, stats]) => (
+                    <div key={col} style={{ flex: 1, minWidth: '250px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                      <h4 style={{ color: '#00f2fe', marginBottom: '15px', textAlign: 'center' }}>{col} Distribution Map</h4>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '150px', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
+                        <div style={{ width: '20%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: `${Math.min(100, Math.max(10, (stats.min / stats.max) * 100))}%`, borderRadius: '4px 4px 0 0' }}></div>
+                        <div style={{ width: '20%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: `${Math.min(100, Math.max(20, (stats.mean / stats.max) * 100))}%`, borderRadius: '4px 4px 0 0' }}></div>
+                        <div style={{ width: '20%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: '90%', borderRadius: '4px 4px 0 0' }}></div>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px', fontSize: '0.8em', color: '#aaa' }}>
+                        <span>Min</span>
+                        <span>Mean</span>
+                        <span>Max</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p style={{ marginTop: '20px', color: '#aaa' }}>No models trained yet. Please process data in the Dashboard first.</p>
+            )}
+          </div>
+        </section>
+      )
+    }
+
+    if (activeTab === 'settings') {
+      return (
+        <section className="cards-grid">
+          <div className="card">
+            <h3><Settings color="#00f2fe" size={24} /> Settings</h3>
+            <p style={{ marginTop: '20px', color: '#aaa' }}>User profile and platform configuration will be available here.</p>
+          </div>
+        </section>
+      )
+    }
+  }
+
+  return (
+    <div className="dashboard">
+      <nav className="sidebar">
+        <h2><Sparkles color="#00f2fe" size={28} /> Nexus</h2>
+        <ul>
+          <li className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
+            <LayoutDashboard size={20} /> Dashboard
+          </li>
+          <li className={activeTab === 'upload' ? 'active' : ''} onClick={() => setActiveTab('upload')}>
+            <Database size={20} /> Data Hub
+          </li>
+          <li className={activeTab === 'models' ? 'active' : ''} onClick={() => setActiveTab('models')}>
+            <Activity size={20} /> ML Engine
+          </li>
+          <li className={activeTab === 'settings' ? 'active' : ''} onClick={() => setActiveTab('settings')}>
+            <Settings size={20} /> Settings
+          </li>
+        </ul>
+        <div className="user-info">
+          <p>{session.user.email}</p>
+          <button onClick={signOut}><LogOut size={16} style={{marginRight: '8px', verticalAlign: 'middle'}}/> Sign Out</button>
+        </div>
+      </nav>
+      
+      <main className="main-content">
+        <header>
+          <h1>Welcome back, {session.user.user_metadata.full_name || 'Explorer'}</h1>
+          <p>Here is what's happening with your data today.</p>
+        </header>
+        
+        {renderContent()}
       </main>
     </div>
   )
