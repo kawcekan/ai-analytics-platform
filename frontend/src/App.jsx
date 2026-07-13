@@ -22,8 +22,17 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [processStatus, setProcessStatus] = useState(null)
   const [backendResults, setBackendResults] = useState(null)
+  
+  const [mobileNumber, setMobileNumber] = useState('')
+  const [isSavingMobile, setIsSavingMobile] = useState(false)
 
   const BACKEND_URL = 'https://ai-analytics-platform-eta.vercel.app'
+
+  useEffect(() => {
+    if (session?.user?.user_metadata?.mobile) {
+      setMobileNumber(session.user.user_metadata.mobile)
+    }
+  }, [session])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,6 +53,16 @@ function App() {
 
   const signOut = async () => {
     await supabase.auth.signOut()
+  }
+
+  const saveMobileNumber = async () => {
+    setIsSavingMobile(true)
+    const { error } = await supabase.auth.updateUser({
+      data: { mobile: mobileNumber }
+    })
+    setIsSavingMobile(false)
+    if (error) alert("Error saving mobile number")
+    else alert("Mobile number saved successfully!")
   }
 
   const handleFileChange = (e) => {
@@ -249,10 +268,23 @@ function App() {
                   {Object.entries(backendResults.summary_statistics).slice(0, 3).map(([col, stats]) => (
                     <div key={col} style={{ flex: 1, minWidth: '250px', padding: '15px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
                       <h4 style={{ color: '#00f2fe', marginBottom: '15px', textAlign: 'center' }}>{col} Distribution Map</h4>
-                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '150px', borderBottom: '1px solid rgba(255,255,255,0.2)' }}>
-                        <div style={{ width: '20%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: `${Math.min(100, Math.max(10, (stats.min / stats.max) * 100))}%`, borderRadius: '4px 4px 0 0' }}></div>
-                        <div style={{ width: '20%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: `${Math.min(100, Math.max(20, (stats.mean / stats.max) * 100))}%`, borderRadius: '4px 4px 0 0' }}></div>
-                        <div style={{ width: '20%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: '90%', borderRadius: '4px 4px 0 0' }}></div>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', height: '150px', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '5px' }}>
+                        
+                        <div style={{ width: '25%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75em', marginBottom: '4px', color: '#fff' }}>{stats.min ? stats.min.toFixed(2) : '0'}</span>
+                          <div style={{ width: '100%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: `${Math.min(100, Math.max(10, (stats.min / stats.max) * 100))}%`, borderRadius: '4px 4px 0 0' }}></div>
+                        </div>
+
+                        <div style={{ width: '25%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75em', marginBottom: '4px', color: '#fff' }}>{stats.mean ? stats.mean.toFixed(2) : '0'}</span>
+                          <div style={{ width: '100%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: `${Math.min(100, Math.max(20, (stats.mean / stats.max) * 100))}%`, borderRadius: '4px 4px 0 0' }}></div>
+                        </div>
+
+                        <div style={{ width: '25%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.75em', marginBottom: '4px', color: '#fff' }}>{stats.max ? stats.max.toFixed(2) : '0'}</span>
+                          <div style={{ width: '100%', background: 'linear-gradient(to top, #00f2fe, #4facfe)', height: '90%', borderRadius: '4px 4px 0 0' }}></div>
+                        </div>
+
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: '10px', fontSize: '0.8em', color: '#aaa' }}>
                         <span>Min</span>
@@ -272,11 +304,38 @@ function App() {
     }
 
     if (activeTab === 'settings') {
+      const userMeta = session.user.user_metadata
       return (
         <section className="cards-grid">
-          <div className="card">
-            <h3><Settings color="#00f2fe" size={24} /> Settings</h3>
-            <p style={{ marginTop: '20px', color: '#aaa' }}>User profile and platform configuration will be available here.</p>
+          <div className="card" style={{ gridColumn: '1 / -1' }}>
+            <h3><Settings color="#00f2fe" size={24} /> User Settings</h3>
+            <div style={{ display: 'flex', gap: '20px', marginTop: '20px', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: '300px', background: 'rgba(255,255,255,0.05)', padding: '20px', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                  <img src={userMeta.avatar_url || 'https://via.placeholder.com/60'} alt="Profile" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1.2em' }}>{userMeta.full_name}</h4>
+                    <p style={{ margin: 0, color: '#aaa' }}>{session.user.email}</p>
+                  </div>
+                </div>
+                
+                <div style={{ marginTop: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', color: '#00f2fe' }}>Mobile Number</label>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <input 
+                      type="tel" 
+                      value={mobileNumber} 
+                      onChange={(e) => setMobileNumber(e.target.value)} 
+                      placeholder="Enter mobile number" 
+                      style={{ flex: 1, padding: '10px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
+                    />
+                    <button className="action-btn" onClick={saveMobileNumber} disabled={isSavingMobile} style={{ width: 'auto' }}>
+                      {isSavingMobile ? 'Saving...' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       )
